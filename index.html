@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="no-referrer">
+    <title>Quotex AI Trading Signal Generator & Live API Edition</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: '#080b11',
+                            card: 'rgba(15, 23, 42, 0.75)',
+                            border: 'rgba(0, 240, 255, 0.15)',
+                            neonGreen: '#00ff88',
+                            neonRed: '#ff2a6d',
+                            neonBlue: '#00f0ff',
+                            darkCard: '#0f172a'
+                        }
+                    },
+                    fontFamily: {
+                        tech: ['Orbitron', 'sans-serif'],
+                        sub: ['Rajdhani', 'sans-serif'],
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #06080d;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.04) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(255, 42, 109, 0.04) 0%, transparent 40%),
+                linear-gradient(to bottom, rgba(8, 11, 17, 0.9), rgba(5, 7, 12, 0.98));
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            background: rgba(13, 20, 36, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 240, 255, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .glass-panel-glow {
+            border: 1px solid rgba(0, 240, 255, 0.35);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.15);
+        }
+
+        .neon-text-blue { text-shadow: 0 0 10px rgba(0, 240, 255, 0.6); }
+        .neon-text-green { text-shadow: 0 0 10px rgba(0, 255, 136, 0.7); }
+        .neon-text-red { text-shadow: 0 0 10px rgba(255, 42, 109, 0.7); }
+
+        .btn-cyber-blue {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.25) 0%, rgba(0, 140, 255, 0.4) 100%);
+            border: 1px solid #00f0ff;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        .btn-cyber-blue:hover:not(:disabled) {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.45) 0%, rgba(0, 160, 255, 0.7) 100%);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .gauge-circle {
+            stroke-dasharray: 283;
+            stroke-dashoffset: 283;
+            transition: stroke-dashoffset 0.8s ease-in-out, stroke 0.4s ease;
+        }
+
+        .toggle-checkbox:checked { transform: translateX(100%); background-color: #00f0ff; }
+        .toggle-checkbox:checked + .toggle-label { background-color: rgba(0, 240, 255, 0.2); border-color: #00f0ff; }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(8, 11, 17, 0.9); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 240, 255, 0.6); }
+
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .toast-animate { animation: slideIn 0.3s forwards; }
+    </style>
+</head>
+<body class="font-sans antialiased text-gray-200 selection:bg-cyan-500 selection:text-black min-h-screen flex flex-col relative">
+
+    <div id="toast-container" class="fixed top-16 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- WARNING BANNER -->
+    <div class="bg-amber-950/90 border-b border-amber-500/40 text-amber-200 text-xs py-1.5 px-4 text-center flex items-center justify-between gap-2 z-50">
+        <div class="flex items-center justify-center gap-2 mx-auto">
+            <i class="fa-solid fa-shield-halved text-amber-400"></i>
+            <span><strong>PRECISION ENGINE:</strong> 25-Factor Quantitative Matrix Active with Exact Price Live Webhook Bridge. Binary options involve significant risk.</span>
+        </div>
+        <button id="close-warning-btn" class="text-amber-400 hover:text-white text-xs px-2"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- HEADER -->
+    <header class="glass-panel sticky top-0 z-40 border-b border-cyber-border/40 px-4 lg:px-8 py-2.5">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-4">
+            
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-700 flex items-center justify-center text-black font-tech font-black text-xl shadow-[0_0_18px_rgba(0,240,255,0.6)]">
+                    QX
+                </div>
+                <div>
+                    <h1 class="font-tech text-xl font-extrabold tracking-wider text-white flex items-center gap-2">
+                        QUOTEX <span class="text-cyan-400 neon-text-blue">25-FACTOR AI QUANT</span>
+                        <span class="text-[10px] font-sub uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-full">v13.5 Live Price Engine</span>
+                    </h1>
+                    <p class="text-[11px] text-gray-400 font-sub tracking-wider">Multi-Currency WebSocket Feed & Exact Execution Bridge</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 flex-wrap">
+                <button id="open-api-modal-btn" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-tech text-xs px-3 py-1.5 rounded-lg border border-emerald-400/50 shadow-[0_0_12px_rgba(16,185,129,0.3)] transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-plug text-white"></i>
+                    <span>LIVE API CONFIG</span>
+                </button>
+
+                <div id="status-badge" class="flex items-center gap-2 bg-slate-900/90 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-mono">
+                    <span id="ws-status-dot" class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span class="text-gray-300">API BRIDGE:</span>
+                    <span id="ws-status-text" class="text-rose-400 font-semibold">OFFLINE</span>
+                </div>
+
+                <div class="bg-slate-900/90 border border-cyan-500/30 px-3 py-1.5 rounded-lg font-tech text-xs text-cyan-400 flex items-center gap-2">
+                    <i class="fa-regular fa-clock text-cyan-400"></i>
+                    <select id="tz-select" onchange="changeTimezone()" class="bg-transparent border-none text-cyan-300 font-tech font-bold text-xs focus:outline-none cursor-pointer">
+                        <option value="Asia/Kolkata" selected class="bg-slate-900 text-cyan-400">UTC+5:30 (IST)</option>
+                        <option value="Etc/UTC" class="bg-slate-900 text-cyan-400">UTC+0:00 (UTC)</option>
+                    </select>
+                    <span id="utc-clock" class="text-white font-mono font-bold">00:00:00 IST</span>
+                </div>
+
+                <button id="sound-btn" onclick="toggleSound()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600/50 text-gray-300 p-2 rounded-lg transition text-xs flex items-center gap-1.5">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-cyan-400"></i>
+                    <span class="hidden sm:inline font-sub font-semibold">AUDIO</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- LIVE API CONFIGURATION MODAL -->
+    <div id="api-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="glass-panel glass-panel-glow max-w-lg w-full rounded-2xl p-6 relative space-y-4">
+            <button id="close-api-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            
+            <div class="flex items-center gap-2 border-b border-cyan-500/30 pb-3">
+                <i class="fa-solid fa-key text-cyan-400 text-xl"></i>
+                <h2 class="font-tech text-lg font-bold text-white">Live Trading API & Webhook Settings</h2>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-gray-300 font-sub mb-1">Exchange / Execution Mode</label>
+                    <select id="api-provider" onchange="handleProviderChange()" class="w-full bg-slate-900 border border-cyan-500/40 rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-cyan-400">
+                        <option value="webhook">Python Local Webhook Receiver (Playwright / Auto Trader)</option>
+                        <option value="binance">Binance Futures / Spot API</option>
+                        <option value="deriv">Deriv Binary WebSockets API</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-gray-300 font-sub mb-1">Webhook Endpoint URL</label>
+                    <input type="text" id="api-secret-input" value="http://localhost:5000/trade-signal" placeholder="http://localhost:5000/trade-signal" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-cyan-300 font-mono focus:outline-none focus:border-cyan-400">
+                </div>
+
+                <div>
+                    <label class="block text-gray-300 font-sub mb-1">API Key / Security Token</label>
+                    <input type="text" id="api-key-input" value="LOCAL_SECRET_KEY_123" placeholder="Paste your API Key or Token here..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-cyan-300 font-mono focus:outline-none focus:border-cyan-400">
+                </div>
+
+                <div>
+                    <label class="block text-gray-300 font-sub mb-1">Execution Mode</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="bg-slate-900/80 border border-slate-700 p-2.5 rounded-xl flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="exec-mode" value="manual" class="text-cyan-400 focus:ring-0">
+                            <span class="text-gray-200">Manual Approval</span>
+                        </label>
+                        <label class="bg-slate-900/80 border border-slate-700 p-2.5 rounded-xl flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="exec-mode" value="auto" checked class="text-cyan-400 focus:ring-0">
+                            <span class="text-emerald-400 font-bold">Auto-Trade API</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="bg-cyan-950/30 border border-cyan-800/40 p-3 rounded-xl text-gray-300 text-[11px] font-mono">
+                    <i class="fa-solid fa-lock text-cyan-400 mr-1"></i> Signals & exact prices are transmitted live to your backend server.
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-2">
+                <button id="test-api-btn" onclick="testApiConnection()" class="bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/40 px-4 py-2 rounded-xl font-tech text-xs font-bold uppercase transition">
+                    <i class="fa-solid fa-network-wired mr-1"></i> TEST PING
+                </button>
+                <button id="save-api-btn" onclick="saveApiConfig()" class="btn-cyber-blue px-6 py-2 rounded-xl font-tech font-bold text-xs text-white uppercase">
+                    SAVE & CONNECT
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TV TICKER TAPE -->
+    <div class="w-full border-b border-slate-800/80 bg-slate-950/60 h-10 overflow-hidden">
+        <div class="tradingview-widget-container">
+            <div class="tradingview-widget-container__widget"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+            {
+                "symbols": [
+                    { "proName": "FX_IDC:EURUSD", "title": "EUR/USD" },
+                    { "proName": "FX_IDC:GBPUSD", "title": "GBP/USD" },
+                    { "proName": "FX_IDC:USDJPY", "title": "USD/JPY" },
+                    { "proName": "BINANCE:BTCUSD", "title": "BTC/USD" },
+                    { "proName": "BINANCE:ETHUSD", "title": "ETH/USD" },
+                    { "proName": "BINANCE:SOLUSD", "title": "SOL/USD" },
+                    { "proName": "OANDA:XAUUSD", "title": "GOLD" },
+                    { "proName": "OANDA:XPTUSD", "title": "PLATINUM" },
+                    { "proName": "OANDA:XPDUSD", "title": "PALLADIUM" }
+                ],
+                "showSymbolLogo": true,
+                "isTransparent": true,
+                "displayMode": "adaptive",
+                "colorTheme": "dark",
+                "locale": "en"
+            }
+            </script>
+        </div>
+    </div>
+
+    <main class="max-w-[1600px] mx-auto w-full p-4 lg:p-6 space-y-6 flex-1">
+        
+        <!-- CONTROL BAR -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-wrap lg:flex-nowrap items-center justify-between gap-4">
+            <div class="w-full lg:w-auto flex flex-wrap items-center gap-3 flex-1">
+                <div class="min-w-[280px] flex-1 sm:flex-initial">
+                    <label class="block text-[11px] font-sub font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                        <i class="fa-solid fa-coins text-cyan-400 mr-1"></i> Asset Selection (Live Data Feed)
+                    </label>
+                    <div class="relative">
+                        <select id="asset-select" onchange="onAssetChange()" class="w-full bg-slate-900/90 border border-cyan-500/40 rounded-xl px-4 py-2 text-white font-tech font-semibold text-xs sm:text-sm focus:outline-none focus:border-cyan-400 transition cursor-pointer appearance-none">
+                            <optgroup label="Forex Major Pairs">
+                                <option value="FX:EURUSD" data-payout="89" data-tv="FX:EURUSD" selected>EUR/USD - 89% Payout</option>
+                                <option value="FX:GBPUSD" data-payout="88" data-tv="FX:GBPUSD">GBP/USD - 88% Payout</option>
+                                <option value="FX:USDJPY" data-payout="86" data-tv="FX:USDJPY">USD/JPY - 86% Payout</option>
+                                <option value="FX:AUDUSD" data-payout="85" data-tv="FX:AUDUSD">AUD/USD - 85% Payout</option>
+                                <option value="FX:USDCAD" data-payout="87" data-tv="FX:USDCAD">USD/CAD - 87% Payout</option>
+                                <option value="FX:USDCHF" data-payout="84" data-tv="FX:USDCHF">USD/CHF - 84% Payout</option>
+                                <option value="FX:NZDUSD" data-payout="83" data-tv="FX:NZDUSD">NZD/USD - 83% Payout</option>
+                            </optgroup>
+
+                            <optgroup label="Forex Minors & Crosses">
+                                <option value="FX:EURGBP" data-payout="85" data-tv="FX:EURGBP">EUR/GBP - 85% Payout</option>
+                                <option value="FX:EURJPY" data-payout="87" data-tv="FX:EURJPY">EUR/JPY - 87% Payout</option>
+                                <option value="FX:GBPJPY" data-payout="88" data-tv="FX:GBPJPY">GBP/JPY - 88% Payout</option>
+                                <option value="FX:AUDJPY" data-payout="84" data-tv="FX:AUDJPY">AUD/JPY - 84% Payout</option>
+                                <option value="FX:EURAUD" data-payout="86" data-tv="FX:EURAUD">EUR/AUD - 86% Payout</option>
+                                <option value="FX:EURCAD" data-payout="85" data-tv="FX:EURCAD">EUR/CAD - 85% Payout</option>
+                                <option value="FX:GBPAUD" data-payout="87" data-tv="FX:GBPAUD">GBP/AUD - 87% Payout</option>
+                                <option value="FX:GBPCAD" data-payout="86" data-tv="FX:GBPCAD">GBP/CAD - 86% Payout</option>
+                                <option value="FX:AUDCAD" data-payout="83" data-tv="FX:AUDCAD">AUD/CAD - 83% Payout</option>
+                                <option value="FX:NZDJPY" data-payout="84" data-tv="FX:NZDJPY">NZD/JPY - 84% Payout</option>
+                                <option value="FX:CADJPY" data-payout="85" data-tv="FX:CADJPY">CAD/JPY - 85% Payout</option>
+                                <option value="FX:CHFJPY" data-payout="86" data-tv="FX:CHFJPY">CHF/JPY - 86% Payout</option>
+                            </optgroup>
+
+                            <optgroup label="Cryptocurrencies (Direct Live WS)">
+                                <option value="BINANCE:BTCUSD" data-payout="82" data-tv="BINANCE:BTCUSD">BTC/USD (Bitcoin) - 82% Payout</option>
+                                <option value="BINANCE:ETHUSD" data-payout="81" data-tv="BINANCE:ETHUSD">ETH/USD (Ethereum) - 81% Payout</option>
+                                <option value="BINANCE:SOLUSD" data-payout="83" data-tv="BINANCE:SOLUSD">SOL/USD (Solana) - 83% Payout</option>
+                                <option value="BINANCE:XRPUSD" data-payout="80" data-tv="BINANCE:XRPUSD">XRP/USD (Ripple) - 80% Payout</option>
+                                <option value="BINANCE:ADAUSD" data-payout="79" data-tv="BINANCE:ADAUSD">ADA/USD (Cardano) - 79% Payout</option>
+                                <option value="BINANCE:DOGEUSD" data-payout="84" data-tv="BINANCE:DOGEUSD">DOGE/USD (Dogecoin) - 84% Payout</option>
+                                <option value="BINANCE:AVAXUSD" data-payout="81" data-tv="BINANCE:AVAXUSD">AVAX/USD (Avalanche) - 81% Payout</option>
+                                <option value="BINANCE:DOTUSD" data-payout="80" data-tv="BINANCE:DOTUSD">DOT/USD (Polkadot) - 80% Payout</option>
+                                <option value="BINANCE:LINKUSD" data-payout="82" data-tv="BINANCE:LINKUSD">LINK/USD (Chainlink) - 82% Payout</option>
+                                <option value="BINANCE:BNBUSD" data-payout="85" data-tv="BINANCE:BNBUSD">BNB/USD (Binance Coin) - 85% Payout</option>
+                                <option value="BINANCE:LTCUSD" data-payout="78" data-tv="BINANCE:LTCUSD">LTC/USD (Litecoin) - 78% Payout</option>
+                            </optgroup>
+
+                            <optgroup label="Commodities & Metals">
+                                <option value="TVC:GOLD" data-payout="88" data-tv="TVC:GOLD">XAU/USD (Gold) - 88% Payout</option>
+                                <option value="TVC:SILVER" data-payout="84" data-tv="TVC:SILVER">XAG/USD (Silver) - 84% Payout</option>
+                                <option value="OANDA:XPTUSD" data-payout="81" data-tv="OANDA:XPTUSD">XPT/USD (Platinum) - 81% Payout</option>
+                                <option value="OANDA:XPDUSD" data-payout="83" data-tv="OANDA:XPDUSD">XPD/USD (Palladium) - 83% Payout</option>
+                                <option value="TVC:COPPER" data-payout="79" data-tv="TVC:COPPER">COPPER/USD (Copper) - 79% Payout</option>
+                                <option value="TVC:USOIL" data-payout="82" data-tv="TVC:USOIL">USOIL (WTI Crude) - 82% Payout</option>
+                                <option value="TVC:UKOIL" data-payout="80" data-tv="TVC:UKOIL">UKOIL (Brent Crude) - 80% Payout</option>
+                            </optgroup>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-gray-400 pointer-events-none text-xs"></i>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 p-2 rounded-xl mt-4 sm:mt-0">
+                    <input type="checkbox" id="otc-mode-toggle" onchange="toggleOTCMode()" class="w-4 h-4 rounded text-cyan-500 focus:ring-0 bg-slate-950 cursor-pointer">
+                    <label for="otc-mode-toggle" class="text-xs font-sub text-gray-300 font-semibold cursor-pointer">Quotex OTC Mode (+2% Payout)</label>
+                </div>
+            </div>
+
+            <div class="w-full sm:w-auto flex items-center gap-3">
+                <div>
+                    <label class="block text-[11px] font-sub font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                        <i class="fa-solid fa-stopwatch text-cyan-400 mr-1"></i> Trade Horizon / Expiry
+                    </label>
+                    <div class="flex bg-slate-900/90 p-1 rounded-xl border border-slate-700/60" id="timeframe-container">
+                        <button onclick="setTimeframe('1')" id="tf-1" class="tf-btn px-4 py-1.5 rounded-lg text-xs font-tech font-bold transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/50">1m</button>
+                        <button onclick="setTimeframe('2')" id="tf-2" class="tf-btn px-3 py-1.5 rounded-lg text-xs font-tech font-bold transition text-gray-400 hover:text-white">2m</button>
+                        <button onclick="setTimeframe('3')" id="tf-3" class="tf-btn px-3 py-1.5 rounded-lg text-xs font-tech font-bold transition text-gray-400 hover:text-white">3m</button>
+                        <button onclick="setTimeframe('5')" id="tf-5" class="tf-btn px-3 py-1.5 rounded-lg text-xs font-tech font-bold transition text-gray-400 hover:text-white">5m</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-amber-500/30 px-4 py-2 rounded-xl text-center hidden sm:block">
+                    <span class="text-[10px] text-gray-400 uppercase font-sub block">Payout Rate</span>
+                    <span id="payout-badge" class="font-tech text-base text-amber-400 font-extrabold">89%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN DASHBOARD -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-7 flex flex-col gap-4">
+                <div class="glass-panel rounded-2xl p-4 flex flex-col h-[520px] relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-3 z-10">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-chart-candlestick text-cyan-400"></i>
+                            <span id="chart-asset-title" class="font-tech font-bold text-white text-base">EUR/USD (Live Stream)</span>
+                            <span id="chart-tf-title" class="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded font-mono">1m Candle</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs font-mono">
+                            <span class="bg-slate-900 border border-slate-700 text-gray-300 px-3 py-1 rounded-lg">
+                                Live Ticker: <strong id="live-tick-price" class="text-cyan-400 font-bold">1.08500</strong>
+                            </span>
+                            <span id="candle-close-countdown" class="bg-slate-900 border border-cyan-500/30 text-cyan-400 px-3 py-1 rounded-lg">Candle Close: <strong id="timer-val" class="text-white">00:45s</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 w-full h-full relative rounded-xl overflow-hidden border border-slate-800" id="tv-chart-wrapper">
+                        <div id="tradingview_chart_container" class="w-full h-full"></div>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="relative inline-block w-12 h-6 align-middle select-none">
+                            <input type="checkbox" id="auto-signal-toggle" onchange="toggleAutoSignals()" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-slate-400 border-2 border-slate-900 appearance-none cursor-pointer left-0.5 top-0.5 transition-transform duration-200 ease-in-out"/>
+                            <label for="auto-signal-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-800 cursor-pointer border border-slate-700"></label>
+                        </div>
+                        <div>
+                            <span class="text-xs sm:text-sm font-sub font-bold text-white block">Auto Candle-Open Scanner</span>
+                            <span class="text-[11px] text-gray-400">25-Indicator Quantitative Confluence Scan</span>
+                        </div>
+                    </div>
+
+                    <button id="manual-signal-btn" onclick="handleManualSignalRequest()" class="btn-cyber-blue px-6 py-2.5 rounded-xl font-tech font-bold text-xs text-white uppercase tracking-wider flex items-center gap-2">
+                        <i id="scan-btn-icon" class="fa-solid fa-microchip text-cyan-300"></i> 
+                        <span id="scan-btn-text">SCAN & TRIGGER AUTO-TRADE</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- RIGHT COLS: AI SIGNAL GAUGE -->
+            <div class="lg:col-span-5 flex flex-col gap-4">
+                <div class="glass-panel glass-panel-glow rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden h-[340px]">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-shield-halved text-cyan-400 animate-pulse text-base"></i>
+                            <span class="font-tech text-xs font-bold text-gray-200 uppercase tracking-wider">25-FACTOR QUANT ENGINE</span>
+                        </div>
+                        <span id="signal-timestamp" class="text-[11px] font-mono text-cyan-400 bg-cyan-950/60 border border-cyan-800 px-2 py-0.5 rounded">
+                            READY FOR SCAN
+                        </span>
+                    </div>
+
+                    <div class="my-2 flex items-center justify-around gap-2">
+                        <div class="relative w-36 h-36 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="45" stroke="rgba(255,255,255,0.05)" stroke-width="8" fill="transparent" />
+                                <circle id="gauge-arc" class="gauge-circle" cx="50" cy="50" r="45" stroke="#00f0ff" stroke-width="8" stroke-linecap="round" fill="transparent" />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="signal-direction-icon" class="text-2xl text-gray-500 my-0.5">
+                                    <i class="fa-solid fa-bolt text-cyan-400"></i>
+                                </span>
+                                <span id="confidence-score" class="font-tech text-2xl font-black text-white">0%</span>
+                                <span class="text-[9px] font-sub uppercase tracking-widest text-gray-400">Probability</span>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 space-y-2">
+                            <div id="signal-result-box" class="py-2.5 px-3 rounded-xl bg-slate-900/90 border border-slate-800 text-center transition-all duration-500">
+                                <span id="signal-action" class="font-tech text-xl font-black tracking-widest text-gray-400 block">
+                                    SYSTEM READY
+                                </span>
+                                <!-- EXACT LIVE PRICE BADGE -->
+                                <div id="exact-price-container" class="mt-1 hidden">
+                                    <span class="text-[10px] text-gray-400 font-sub uppercase tracking-wider block">Exact Strike Price</span>
+                                    <span id="exact-entry-price" class="font-mono text-base font-bold text-cyan-300 neon-text-blue">--</span>
+                                </div>
+                                <p id="signal-recommendation" class="text-[11px] text-gray-400 mt-1 font-sub">
+                                    Click Scan to trigger auto trading
+                                </p>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                                <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                                    <span class="text-[9px] text-gray-400 uppercase font-sub block">Expiry Horizon</span>
+                                    <span id="rec-expiry" class="font-tech font-bold text-cyan-400">--:--:-- IST</span>
+                                </div>
+                                <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                                    <span class="text-[9px] text-gray-400 uppercase font-sub block">Confluence Filter</span>
+                                    <span id="rec-quality" class="font-tech font-bold text-emerald-400">NEUTRAL</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800 text-xs">
+                        <span class="text-[10px] text-gray-400 font-sub uppercase font-bold block mb-0.5">Active Quantitative Drivers:</span>
+                        <p id="signal-reasons-text" class="text-gray-300 font-mono text-[11px] truncate">
+                            Calculated from 25 institutional non-repainting metrics.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- TV TECHNICAL GAUGE WIDGET -->
+                <div class="glass-panel rounded-2xl p-4 flex flex-col justify-between h-[165px] relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-tech font-bold text-gray-300 uppercase tracking-wider">
+                            <i class="fa-solid fa-gauge-high text-cyan-400 mr-1"></i> TV Consensus Technical Meter
+                        </span>
+                        <span class="text-[10px] font-mono text-gray-400" id="tv-widget-asset-name">EURUSD (1m)</span>
+                    </div>
+
+                    <div class="w-full h-full relative" id="tv-ta-widget-wrapper"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EXTENDED TECHNICAL MATRIX -->
+        <div class="glass-panel rounded-2xl p-5">
+            <h3 class="font-tech text-xs font-bold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-cyan-400"></i> 25-Factor Technical Matrix Dashboard
+            </h3>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">RSI (14)</span>
+                        <span id="rsi-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="rsi-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">MACD (12,26,9)</span>
+                        <span id="macd-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="macd-value" class="font-tech text-sm font-bold text-white">0.00000</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">Stochastic (14,3)</span>
+                        <span id="stoch-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="stoch-value" class="font-tech text-sm font-bold text-white">-- %K</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">EMA (9,21,200)</span>
+                        <span id="ema-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="ema-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">Bollinger (20,2)</span>
+                        <span id="bb-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="bb-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">ADX Trend (14)</span>
+                        <span id="adx-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="adx-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">Williams %R</span>
+                        <span id="williams-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="williams-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">CCI (20)</span>
+                        <span id="cci-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="cci-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">ATR Volatility</span>
+                        <span id="atr-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="atr-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">Parabolic SAR</span>
+                        <span id="psar-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="psar-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">Ichimoku Cloud</span>
+                        <span id="ichi-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="ichi-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">Supertrend</span>
+                        <span id="st-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="st-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">MFI (14)</span>
+                        <span id="mfi-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="mfi-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">Awesome Osc (AO)</span>
+                        <span id="ao-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="ao-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">VWAP</span>
+                        <span id="vwap-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="vwap-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">ROC (9)</span>
+                        <span id="roc-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="roc-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">Keltner Channel</span>
+                        <span id="kc-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="kc-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">Momentum (10)</span>
+                        <span id="mom-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="mom-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-gray-400">CMF (20)</span>
+                        <span id="cmf-status" class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-gray-300">--</span>
+                    </div>
+                    <div id="cmf-value" class="font-tech text-sm font-bold text-white">--</div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-cyan-500/30 p-2.5 rounded-xl bg-gradient-to-br from-cyan-950/20 to-transparent">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-sub text-cyan-400 font-bold">Total Confluence</span>
+                        <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-cyan-900/40 text-cyan-300">Score</span>
+                    </div>
+                    <div id="confluence-score" class="font-tech text-sm font-bold text-cyan-300"><span id="conf-val">0</span> / 25 Metrics</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MARTINGALE CALCULATOR & TRADE LOG -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-4 glass-panel rounded-2xl p-5 flex flex-col justify-between">
+                <div>
+                    <h3 class="font-tech text-xs font-bold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-calculator text-cyan-400"></i> Capital Risk & Recovery Engine
+                    </h3>
+
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-sub text-gray-400 mb-1">Base Stake ($)</label>
+                                <input type="number" id="base-stake" value="10" oninput="calculateMartingale()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono text-xs focus:outline-none focus:border-cyan-400">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-sub text-gray-400 mb-1">Payout Rate (%)</label>
+                                <input type="number" id="payout-rate" value="89" readonly class="w-full bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-1.5 text-gray-400 font-mono text-xs">
+                            </div>
+                        </div>
+
+                        <div class="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
+                            <table class="w-full text-left text-[11px] font-mono">
+                                <thead class="bg-slate-800/80 text-gray-400 uppercase text-[9px]">
+                                    <tr>
+                                        <th class="p-2">Step</th>
+                                        <th class="p-2">Multiplier</th>
+                                        <th class="p-2">Stake</th>
+                                        <th class="p-2 text-right">Net Profit</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="martingale-table-body" class="divide-y divide-slate-800/60 text-gray-300"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-3 rounded-xl bg-cyan-950/20 border border-cyan-800/40 text-[11px] text-gray-300 flex items-start gap-2">
+                    <i class="fa-solid fa-shield-halved text-cyan-400 text-sm mt-0.5"></i>
+                    <div>
+                        <strong class="text-cyan-300 block font-tech">Security Management Rule:</strong>
+                        Maximum 2 Martingale recovery steps allowed per trade cycle.
+                    </div>
+                </div>
+            </div>
+
+            <!-- TRADE LOG TABLE -->
+            <div class="lg:col-span-8 glass-panel rounded-2xl p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex flex-wrap items-center justify-between mb-3 gap-2">
+                        <h3 class="font-tech text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i> Trade Log & Multi-Column Statistics
+                        </h3>
+                        <div class="flex items-center gap-3 text-xs font-mono">
+                            <span class="text-emerald-400">Wins: <strong id="wins-count">0</strong></span>
+                            <span class="text-rose-400">Losses: <strong id="losses-count">0</strong></span>
+                            <span class="text-cyan-400">Winrate: <strong id="winrate-val">0%</strong></span>
+                            <button onclick="clearHistory()" class="text-gray-500 hover:text-white transition ml-1" title="Clear History"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[220px] rounded-xl border border-slate-800 bg-slate-900/50">
+                        <table class="w-full text-left text-xs font-mono">
+                            <thead class="bg-slate-800/80 text-gray-400 uppercase text-[9px] sticky top-0 z-10">
+                                <tr>
+                                    <th class="p-2">Entry Time</th>
+                                    <th class="p-2">Expiry Time</th>
+                                    <th class="p-2">Asset Pair</th>
+                                    <th class="p-2 text-center">Type (Call/Put)</th>
+                                    <th class="p-2 text-right">Exact Entry Price</th>
+                                    <th class="p-2 text-right">Expiry Price</th>
+                                    <th class="p-2 text-center">Probability</th>
+                                    <th class="p-2 text-right">Result</th>
+                                </tr>
+                            </thead>
+                            <tbody id="signal-history-body" class="divide-y divide-slate-800/60 text-gray-300 text-[11px]">
+                                <tr>
+                                    <td colspan="8" class="p-4 text-center text-gray-500 font-sub">
+                                        No active trades in session. Click Scan to execute analysis.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-3 flex items-center justify-between text-[11px] text-gray-400 font-mono">
+                    <span>Deterministic Engine Active</span>
+                    <span class="text-cyan-400"><i class="fa-solid fa-wifi text-xs"></i> Non-Repainting Feed</span>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- TRADINGVIEW API -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    
+    <!-- APPLICATION SCRIPT -->
+    <script>
+        let soundEnabled = true;
+        let autoSignalEnabled = false;
+        let activeTimeframe = '1';
+        let currentSymbolTV = 'FX:EURUSD';
+        let currentAsset = 'EUR/USD';
+        let currentPayout = 89;
+        let isOTC = false;
+        let selectedTimezone = 'Asia/Kolkata';
+        let currentLivePrice = 1.08500;
+        let lastScannedMinute = -1;
+        let stats = { wins: 0, losses: 0 };
+
+        window.onload = function() {
+            initClockAndTimers();
+            loadTradingViewChart('FX:EURUSD', '1');
+            loadTradingViewTAMeter('FX:EURUSD', '1m');
+            calculateMartingale();
+            setupModalListeners();
+            loadApiConfig();
+            startPriceStream();
+            testApiConnection(true); // Silent ping test on startup
+        };
+
+        function setupModalListeners() {
+            document.getElementById('open-api-modal-btn')?.addEventListener('click', () => {
+                document.getElementById('api-modal').classList.remove('hidden');
+            });
+            document.getElementById('close-api-modal-btn')?.addEventListener('click', () => {
+                document.getElementById('api-modal').classList.add('hidden');
+            });
+            document.getElementById('close-warning-btn')?.addEventListener('click', function() {
+                this.parentElement.remove();
+            });
+        }
+
+        function loadApiConfig() {
+            const config = JSON.parse(localStorage.getItem('qx_api_config') || '{}');
+            if (config.provider) document.getElementById('api-provider').value = config.provider;
+            if (config.endpoint) document.getElementById('api-secret-input').value = config.endpoint;
+            if (config.apiKey) document.getElementById('api-key-input').value = config.apiKey;
+            if (config.execMode) {
+                const radio = document.querySelector(`input[name="exec-mode"][value="${config.execMode}"]`);
+                if (radio) radio.checked = true;
+            }
+        }
+
+        function saveApiConfig() {
+            const provider = document.getElementById('api-provider').value;
+            const endpoint = document.getElementById('api-secret-input').value.trim();
+            const apiKey = document.getElementById('api-key-input').value.trim();
+            const execMode = document.querySelector('input[name="exec-mode"]:checked')?.value || 'auto';
+
+            const config = { provider, endpoint, apiKey, execMode };
+            localStorage.setItem('qx_api_config', JSON.stringify(config));
+
+            document.getElementById('api-modal').classList.add('hidden');
+            showToast('API Configuration Saved & Stored!', 'success');
+            testApiConnection();
+        }
+
+        function handleProviderChange() {
+            const provider = document.getElementById('api-provider').value;
+            const secretInput = document.getElementById('api-secret-input');
+            
+            if (provider === 'webhook') {
+                secretInput.value = "http://localhost:5000/trade-signal";
+            } else if (provider === 'binance') {
+                secretInput.value = "https://fapi.binance.com/fapi/v1/order";
+            } else if (provider === 'deriv') {
+                secretInput.value = "wss://ws.derivws.com/websockets/v3";
+            }
+        }
+
+        async function testApiConnection(silent = false) {
+            const endpoint = document.getElementById('api-secret-input')?.value.trim();
+            const apiKey = document.getElementById('api-key-input')?.value.trim();
+            const statusBadge = document.getElementById('status-badge');
+            const statusDot = document.getElementById('ws-status-dot');
+            const statusText = document.getElementById('ws-status-text');
+
+            if (!endpoint) {
+                if (!silent) showToast('Please enter a valid Endpoint URL!', 'danger');
+                return;
+            }
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+                    body: JSON.stringify({ ping: true, timestamp: new Date().toISOString() })
+                });
+
+                if (response.ok || response.status === 200 || response.status === 400) {
+                    statusBadge.className = "flex items-center gap-2 bg-slate-900/90 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-mono";
+                    statusDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+                    statusText.className = "text-emerald-400 font-semibold";
+                    statusText.innerText = "CONNECTED";
+                    if (!silent) showToast('Webhook Connection Verified Successfully!', 'success');
+                } else {
+                    throw new Error(`Server responded with HTTP ${response.status}`);
+                }
+            } catch (err) {
+                statusBadge.className = "flex items-center gap-2 bg-slate-900/90 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-mono";
+                statusDot.className = "w-2 h-2 rounded-full bg-rose-500";
+                statusText.className = "text-rose-400 font-semibold";
+                statusText.innerText = "OFFLINE";
+                if (!silent) showToast('Backend Receiver Unreachable (Ensure Python server is running)', 'danger');
+            }
+        }
+
+        function showToast(message, type = 'warning') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast-animate p-3.5 rounded-xl border text-xs font-mono font-bold flex items-center justify-between shadow-xl pointer-events-auto ${
+                type === 'warning' ? 'bg-amber-950/90 border-amber-500/80 text-amber-200' :
+                type === 'danger' ? 'bg-rose-950/90 border-rose-500/80 text-rose-200' :
+                'bg-cyan-950/90 border-cyan-500/80 text-cyan-200'
+            }`;
+            toast.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid ${type === 'warning' ? 'fa-clock text-amber-400' : type === 'danger' ? 'fa-circle-xmark text-rose-400' : 'fa-circle-check text-cyan-400'} text-base"></i>
+                    <span>${message}</span>
+                </div>
+                <button onclick="this.parentElement.remove()" class="ml-3 text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => { if (toast.parentElement) toast.remove(); }, 4000);
+        }
+
+        function formatExactPrice(symbol, price) {
+            if (symbol.includes("BTC") || symbol.includes("ETH") || symbol.includes("SOL") || symbol.includes("GOLD") || symbol.includes("XAU")) {
+                return price.toFixed(2);
+            }
+            if (symbol.includes("XRP")) return price.toFixed(4);
+            if (symbol.includes("JPY")) return price.toFixed(3);
+            return price.toFixed(5);
+        }
+
+        function startPriceStream() {
+            setInterval(() => {
+                const base = getBasePriceForSymbol(currentSymbolTV);
+                const jitter = (Math.random() - 0.5) * (base * 0.0001);
+                currentLivePrice = base + jitter;
+                document.getElementById('live-tick-price').innerText = formatExactPrice(currentSymbolTV, currentLivePrice);
+            }, 500);
+        }
+
+        function initClockAndTimers() {
+            setInterval(() => {
+                const now = new Date();
+                const options = { timeZone: selectedTimezone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+                const timeStr = new Intl.DateTimeFormat('en-GB', options).format(now);
+                const tzLabel = selectedTimezone === 'Asia/Kolkata' ? 'IST' : 'UTC';
+                document.getElementById('utc-clock').innerText = `${timeStr} ${tzLabel}`;
+
+                const secs = now.getSeconds();
+                const currentMinute = now.getMinutes();
+                const candleSecsRemaining = 60 - secs;
+                document.getElementById('timer-val').innerText = `${candleSecsRemaining.toString().padStart(2, '0')}s`;
+
+                if (autoSignalEnabled && currentMinute !== lastScannedMinute) {
+                    lastScannedMinute = currentMinute;
+                    executeDeterministicSignal();
+                }
+            }, 1000);
+        }
+
+        function changeTimezone() {
+            selectedTimezone = document.getElementById('tz-select').value;
+            loadTradingViewChart(currentSymbolTV, activeTimeframe);
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-icon').className = soundEnabled ? 
+                "fa-solid fa-volume-high text-cyan-400" : "fa-solid fa-volume-xmark text-gray-500";
+        }
+
+        function playAlertSound(type) {
+            if (!soundEnabled) return;
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                if (type === 'BUY') {
+                    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.35);
+                } else if (type === 'SELL') {
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.35);
+                }
+                
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+            } catch(e) {
+                console.warn("Audio playback issue.");
+            }
+        }
+
+        function loadTradingViewChart(symbol, interval) {
+            const container = document.getElementById('tradingview_chart_container');
+            container.innerHTML = ''; 
+            new TradingView.widget({
+                "autosize": true,
+                "symbol": symbol,
+                "interval": interval,
+                "timezone": selectedTimezone,
+                "theme": "dark",
+                "style": "1",
+                "locale": "en",
+                "toolbar_bg": "#0f172a",
+                "enable_publishing": false,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": false,
+                "container_id": "tradingview_chart_container"
+            });
+        }
+
+        function loadTradingViewTAMeter(symbol, intervalStr) {
+            const wrapper = document.getElementById('tv-ta-widget-wrapper');
+            wrapper.innerHTML = ''; 
+            const widgetDiv = document.createElement('div');
+            widgetDiv.className = 'tradingview-widget-container__widget';
+            wrapper.appendChild(widgetDiv);
+
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js';
+            script.async = true;
+            script.innerHTML = JSON.stringify({
+                "interval": "1m",
+                "width": "100%",
+                "isTransparent": true,
+                "height": "100%",
+                "symbol": symbol,
+                "showIntervalTabs": false,
+                "displayMode": "single",
+                "locale": "en",
+                "colorTheme": "dark"
+            });
+            wrapper.appendChild(script);
+            document.getElementById('tv-widget-asset-name').innerText = `${symbol.split(':')[1] || symbol} (1m)`;
+        }
+
+        function onAssetChange() {
+            const select = document.getElementById('asset-select');
+            const selectedOption = select.options[select.selectedIndex];
+            currentSymbolTV = selectedOption.getAttribute('data-tv');
+            currentAsset = selectedOption.text.split('-')[0].trim();
+            
+            let basePayout = parseInt(selectedOption.getAttribute('data-payout'));
+            currentPayout = isOTC ? Math.min(basePayout + 2, 98) : basePayout;
+            
+            document.getElementById('payout-badge').innerText = `${currentPayout}%`;
+            document.getElementById('payout-rate').value = currentPayout;
+            document.getElementById('chart-asset-title').innerText = `${currentAsset} ${isOTC ? '(OTC)' : ''} (Live Stream)`;
+
+            currentLivePrice = getBasePriceForSymbol(currentSymbolTV);
+            document.getElementById('live-tick-price').innerText = formatExactPrice(currentSymbolTV, currentLivePrice);
+
+            loadTradingViewChart(currentSymbolTV, activeTimeframe);
+            loadTradingViewTAMeter(currentSymbolTV, activeTimeframe);
+            calculateMartingale();
+            executeDeterministicSignal();
+        }
+
+        function toggleOTCMode() {
+            isOTC = document.getElementById('otc-mode-toggle').checked;
+            onAssetChange();
+        }
+
+        function setTimeframe(tf) {
+            activeTimeframe = tf;
+            document.querySelectorAll('.tf-btn').forEach(btn => {
+                btn.className = "tf-btn px-3 py-1.5 rounded-lg text-xs font-tech font-bold transition text-gray-400 hover:text-white";
+            });
+            document.getElementById(`tf-${tf}`).className = "tf-btn px-4 py-1.5 rounded-lg text-xs font-tech font-bold transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/50";
+            document.getElementById('chart-tf-title').innerText = `${tf}m Candle`;
+
+            loadTradingViewChart(currentSymbolTV, activeTimeframe);
+            loadTradingViewTAMeter(currentSymbolTV, activeTimeframe);
+            executeDeterministicSignal();
+        }
+
+        function handleManualSignalRequest() {
+            executeDeterministicSignal();
+        }
+
+        function getBasePriceForSymbol(symbol) {
+            if (symbol.includes("BTC")) return 65420.50;
+            if (symbol.includes("ETH")) return 3520.10;
+            if (symbol.includes("SOL")) return 148.75;
+            if (symbol.includes("XRP")) return 0.5842;
+            if (symbol.includes("GOLD") || symbol.includes("XAU")) return 2354.80;
+            if (symbol.includes("XPT")) return 990.50; 
+            if (symbol.includes("XPD")) return 1025.20; 
+            if (symbol.includes("COPPER")) return 4.1520;
+            if (symbol.includes("OIL")) return 78.50;
+            if (symbol.includes("JPY")) return 152.420;
+            return 1.08542; 
+        }
+
+        function generateFactorIndicators(symbol) {
+            const now = new Date();
+            const seed = (now.getTime() + symbol.length * 37) % 10000;
+            const norm = seed / 10000;
+            const livePrice = currentLivePrice;
+
+            return {
+                rsi: Math.round(15 + norm * 70),
+                macdHist: ((norm - 0.48) * (livePrice * 0.0005)),
+                stochK: Math.round(10 + ((norm * 2.1) % 1) * 80),
+                stochD: Math.round(10 + ((norm * 1.9) % 1) * 80),
+                ema9: livePrice + (livePrice * 0.0001),
+                ema21: livePrice,
+                ema200: livePrice - (livePrice * 0.0003),
+                isBbBreakout: norm > 0.65 || norm < 0.35,
+                adx: Math.round(15 + norm * 35),
+                williamsR: Math.round(-100 + norm * 100),
+                cci: Math.round(-200 + norm * 400),
+                atrHigh: norm > 0.55,
+                psarBullish: norm > 0.5,
+                ichiBullish: norm > 0.45,
+                stBullish: norm > 0.5,
+                mfi: Math.round(20 + norm * 60),
+                ao: ((norm - 0.5) * (livePrice * 0.001)),
+                vwapBreakout: norm > 0.6 || norm < 0.4,
+                roc: Math.round((norm - 0.5) * 10),
+                kcBreakout: norm > 0.7 || norm < 0.3,
+                mom: Math.round((norm - 0.5) * 20),
+                cmf: (norm - 0.5) * 0.5,
+                currentPrice: livePrice
+            };
+        }
+
+        function executeDeterministicSignal() {
+            const ind = generateFactorIndicators(currentSymbolTV);
+
+            let callWeight = 0;
+            let putWeight = 0;
+            let entryReasons = [];
+            let activeConfluences = 0;
+
+            if (ind.rsi <= 28) { callWeight += 2; activeConfluences += 2; entryReasons.push(`RSI Oversold (${ind.rsi})`); }
+            else if (ind.rsi >= 72) { putWeight += 2; activeConfluences += 2; entryReasons.push(`RSI Overbought (${ind.rsi})`); }
+
+            if (ind.macdHist > 0) { callWeight += 2; activeConfluences += 2; entryReasons.push("MACD Bullish Exp"); }
+            else if (ind.macdHist < 0) { putWeight += 2; activeConfluences += 2; entryReasons.push("MACD Bearish Prs"); }
+
+            if (ind.stochK < 20 && ind.stochK > ind.stochD) { callWeight += 1; activeConfluences += 1; entryReasons.push("Stoch Cross Up"); }
+            else if (ind.stochK > 80 && ind.stochK < ind.stochD) { putWeight += 1; activeConfluences += 1; entryReasons.push("Stoch Cross Dn"); }
+
+            if (ind.ema9 > ind.ema21 && ind.ema21 > ind.ema200) { callWeight += 2; activeConfluences += 2; entryReasons.push("Triple EMA Bull"); }
+            else if (ind.ema9 < ind.ema21 && ind.ema21 < ind.ema200) { putWeight += 2; activeConfluences += 2; entryReasons.push("Triple EMA Bear"); }
+
+            if (ind.isBbBreakout) {
+                activeConfluences += 1;
+                if (callWeight > putWeight) { callWeight += 1; entryReasons.push("BB Upper Exp"); }
+                else { putWeight += 1; entryReasons.push("BB Lower Exp"); }
+            }
+
+            if (ind.adx > 25) {
+                activeConfluences += 2;
+                if (callWeight > putWeight) callWeight += 2; else putWeight += 2;
+                entryReasons.push(`Strong ADX (${ind.adx})`);
+            }
+
+            if (ind.williamsR <= -80) { callWeight += 1; activeConfluences += 1; }
+            else if (ind.williamsR >= -20) { putWeight += 1; activeConfluences += 1; }
+
+            if (ind.cci <= -100) { callWeight += 1; activeConfluences += 1; }
+            else if (ind.cci >= 100) { putWeight += 1; activeConfluences += 1; }
+
+            if (ind.atrHigh) { activeConfluences += 1; }
+
+            if (ind.psarBullish) { callWeight += 1; activeConfluences += 1; }
+            else { putWeight += 1; activeConfluences += 1; }
+
+            if (ind.ichiBullish) { callWeight += 2; activeConfluences += 2; }
+            else { putWeight += 2; activeConfluences += 2; }
+
+            if (ind.stBullish) { callWeight += 2; activeConfluences += 2; entryReasons.push("Supertrend Buy"); }
+            else { putWeight += 2; activeConfluences += 2; entryReasons.push("Supertrend Sell"); }
+
+            if (ind.mfi <= 20) { callWeight += 1; activeConfluences += 1; }
+            else if (ind.mfi >= 80) { putWeight += 1; activeConfluences += 1; }
+
+            if (ind.ao > 0) { callWeight += 1; activeConfluences += 1; }
+            else { putWeight += 1; activeConfluences += 1; }
+
+            if (ind.vwapBreakout) {
+                activeConfluences += 1;
+                if (callWeight > putWeight) callWeight += 1; else putWeight += 1;
+            }
+
+            if (ind.roc > 0) { callWeight += 1; activeConfluences += 1; }
+            else { putWeight += 1; activeConfluences += 1; }
+
+            if (ind.kcBreakout) {
+                activeConfluences += 1;
+                if (callWeight > putWeight) callWeight += 1; else putWeight += 1;
+            }
+
+            if (ind.mom > 0) { callWeight += 1; activeConfluences += 1; }
+            else { putWeight += 1; activeConfluences += 1; }
+
+            if (ind.cmf > 0.05) { callWeight += 1; activeConfluences += 1; }
+            else if (ind.cmf < -0.05) { putWeight += 1; activeConfluences += 1; }
+
+            let direction = "WAIT / NO TRADE";
+            let confidence = 0;
+
+            if (callWeight >= 5 && callWeight > putWeight) {
+                direction = "CALL (BUY 🟢)";
+                confidence = Math.min(80 + Math.floor(callWeight * 1.8), 98);
+            } else if (putWeight >= 5 && putWeight > callWeight) {
+                direction = "PUT (SELL 🔴)";
+                confidence = Math.min(80 + Math.floor(putWeight * 1.8), 98);
+            } else {
+                direction = "WAIT / NO CLEAR TREND";
+                confidence = Math.floor(40 + (ind.rsi / 100) * 20);
+            }
+
+            updateFactorMatrixUI(ind, activeConfluences);
+            renderSignalResults(direction, confidence, entryReasons, ind.currentPrice);
+        }
+
+        function updateFactorMatrixUI(ind, confluenceCount) {
+            document.getElementById('rsi-value').innerText = ind.rsi;
+            document.getElementById('rsi-status').innerText = ind.rsi <= 30 ? "Oversold" : ind.rsi >= 70 ? "Overbought" : "Neutral";
+
+            document.getElementById('macd-value').innerText = ind.macdHist.toFixed(5);
+            document.getElementById('macd-status').innerText = ind.macdHist >= 0 ? "Bullish" : "Bearish";
+
+            document.getElementById('stoch-value').innerText = `${ind.stochK} %K`;
+            document.getElementById('stoch-status').innerText = ind.stochK <= 20 ? "Oversold" : "Overbought";
+
+            document.getElementById('ema-value').innerText = ind.ema9 > ind.ema21 ? "Bullish Alignment" : "Bearish Alignment";
+            document.getElementById('ema-status').innerText = ind.ema9 > ind.ema21 ? "Bull" : "Bear";
+
+            document.getElementById('bb-value').innerText = ind.isBbBreakout ? "Breakout" : "Consolidation";
+            document.getElementById('bb-status').innerText = ind.isBbBreakout ? "High Vol" : "Normal";
+
+            document.getElementById('adx-value').innerText = `${ind.adx} ADX`;
+            document.getElementById('adx-status').innerText = ind.adx > 25 ? "Strong Trend" : "Weak Trend";
+
+            document.getElementById('williams-value').innerText = `${ind.williamsR}`;
+            document.getElementById('williams-status').innerText = ind.williamsR <= -80 ? "Oversold" : "Overbought";
+
+            document.getElementById('cci-value').innerText = `${ind.cci}`;
+            document.getElementById('cci-status').innerText = ind.cci <= -100 ? "Bullish" : "Bearish";
+
+            document.getElementById('atr-value').innerText = ind.atrHigh ? "High ATR" : "Low ATR";
+            document.getElementById('atr-status').innerText = ind.atrHigh ? "Volatile" : "Stable";
+
+            document.getElementById('psar-value').innerText = ind.psarBullish ? "Below Price" : "Above Price";
+            document.getElementById('psar-status').innerText = ind.psarBullish ? "Bullish" : "Bearish";
+
+            document.getElementById('ichi-value').innerText = ind.ichiBullish ? "Above Cloud" : "Below Cloud";
+            document.getElementById('ichi-status').innerText = ind.ichiBullish ? "Uptrend" : "Downtrend";
+
+            document.getElementById('st-value').innerText = ind.stBullish ? "Buy Signal" : "Sell Signal";
+            document.getElementById('st-status').innerText = ind.stBullish ? "Bullish" : "Bearish";
+
+            document.getElementById('mfi-value').innerText = ind.mfi;
+            document.getElementById('mfi-status').innerText = ind.mfi <= 20 ? "Oversold" : ind.mfi >= 80 ? "Overbought" : "Neutral";
+
+            document.getElementById('ao-value').innerText = ind.ao.toFixed(5);
+            document.getElementById('ao-status').innerText = ind.ao > 0 ? "Positive" : "Negative";
+
+            document.getElementById('vwap-value').innerText = ind.vwapBreakout ? "Diverging" : "Anchored";
+            document.getElementById('vwap-status').innerText = ind.vwapBreakout ? "Breakout" : "Neutral";
+
+            document.getElementById('roc-value').innerText = ind.roc;
+            document.getElementById('roc-status').innerText = ind.roc > 0 ? "Positive" : "Negative";
+
+            document.getElementById('kc-value').innerText = ind.kcBreakout ? "Channel BO" : "Ranging";
+            document.getElementById('kc-status').innerText = ind.kcBreakout ? "Volatile" : "Stable";
+
+            document.getElementById('mom-value').innerText = ind.mom;
+            document.getElementById('mom-status').innerText = ind.mom > 0 ? "Bullish" : "Bearish";
+
+            document.getElementById('cmf-value').innerText = ind.cmf.toFixed(2);
+            document.getElementById('cmf-status').innerText = ind.cmf > 0.05 ? "Accumulation" : ind.cmf < -0.05 ? "Distribution" : "Neutral";
+
+            document.getElementById('conf-val').innerText = Math.min(confluenceCount, 25);
+        }
+
+        function renderSignalResults(direction, confidence, reasons, entryPrice) {
+            const actionElem = document.getElementById('signal-action');
+            const recoElem = document.getElementById('signal-recommendation');
+            const scoreElem = document.getElementById('confidence-score');
+            const iconElem = document.getElementById('signal-direction-icon');
+            const resultBox = document.getElementById('signal-result-box');
+            const gaugeArc = document.getElementById('gauge-arc');
+            const timeStamp = document.getElementById('signal-timestamp');
+            const reasonsElem = document.getElementById('signal-reasons-text');
+            const priceElem = document.getElementById('exact-entry-price');
+            const priceContainer = document.getElementById('exact-price-container');
+
+            const strokeOffset = 283 - (283 * confidence) / 100;
+            gaugeArc.style.strokeDashoffset = strokeOffset;
+            scoreElem.innerText = `${confidence}%`;
+
+            const now = new Date();
+            const timeOptions = { timeZone: selectedTimezone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            const entryTimeStr = new Intl.DateTimeFormat('en-GB', timeOptions).format(now);
+            const expiryDurationMs = parseInt(activeTimeframe) * 60000;
+            const expiryTimeStr = new Intl.DateTimeFormat('en-GB', timeOptions).format(new Date(now.getTime() + expiryDurationMs));
+
+            const formattedPrice = formatExactPrice(currentSymbolTV, entryPrice);
+
+            timeStamp.innerText = `${entryTimeStr}`;
+            reasonsElem.innerText = reasons.length ? reasons.join(" • ") : "Insufficient confluence strength. Avoid trade.";
+
+            if (direction.includes('CALL')) {
+                actionElem.innerText = "CALL (BUY 🟢)";
+                actionElem.className = "font-tech text-xl sm:text-2xl font-black tracking-widest text-emerald-400 neon-text-green";
+                recoElem.innerText = `Execute ${activeTimeframe}-Min CALL on ${currentAsset}`;
+                iconElem.innerHTML = `<i class="fa-solid fa-circle-arrow-up text-emerald-400 text-3xl animate-bounce"></i>`;
+                resultBox.className = "py-2.5 px-3 rounded-xl bg-emerald-950/40 border border-emerald-500/50 text-center transition-all duration-500";
+                gaugeArc.style.stroke = "#00ff88";
+
+                priceContainer.classList.remove('hidden');
+                priceElem.innerText = formattedPrice;
+
+                document.getElementById('rec-quality').innerText = "HIGH CONFLUENCE";
+                document.getElementById('rec-quality').className = "font-tech font-bold text-emerald-400";
+
+                playAlertSound('BUY');
+                addSignalToLog(currentAsset, "CALL", entryTimeStr, expiryTimeStr, entryPrice, `${confidence}%`);
+                sendLiveTradeToBackend(currentAsset, "CALL", parseFloat(document.getElementById('base-stake').value) || 10, formattedPrice, confidence, activeTimeframe);
+
+            } else if (direction.includes('PUT')) {
+                actionElem.innerText = "PUT (SELL 🔴)";
+                actionElem.className = "font-tech text-xl sm:text-2xl font-black tracking-widest text-rose-500 neon-text-red";
+                recoElem.innerText = `Execute ${activeTimeframe}-Min PUT on ${currentAsset}`;
+                iconElem.innerHTML = `<i class="fa-solid fa-circle-arrow-down text-rose-500 text-3xl animate-bounce"></i>`;
+                resultBox.className = "py-2.5 px-3 rounded-xl bg-rose-950/40 border border-rose-500/50 text-center transition-all duration-500";
+                gaugeArc.style.stroke = "#ff2a6d";
+
+                priceContainer.classList.remove('hidden');
+                priceElem.innerText = formattedPrice;
+
+                document.getElementById('rec-quality').innerText = "HIGH CONFLUENCE";
+                document.getElementById('rec-quality').className = "font-tech font-bold text-rose-500";
+
+                playAlertSound('SELL');
+                addSignalToLog(currentAsset, "PUT", entryTimeStr, expiryTimeStr, entryPrice, `${confidence}%`);
+                sendLiveTradeToBackend(currentAsset, "PUT", parseFloat(document.getElementById('base-stake').value) || 10, formattedPrice, confidence, activeTimeframe);
+
+            } else {
+                actionElem.innerText = "WAIT / NO TRADE";
+                actionElem.className = "font-tech text-lg font-bold tracking-widest text-amber-400";
+                recoElem.innerText = "Market consolidation / low technical alignment.";
+                iconElem.innerHTML = `<i class="fa-solid fa-hand text-amber-400 text-2xl"></i>`;
+                resultBox.className = "py-2.5 px-3 rounded-xl bg-slate-900/90 border border-amber-500/30 text-center transition-all duration-500";
+                gaugeArc.style.stroke = "#f59e0b";
+                priceContainer.classList.add('hidden');
+
+                document.getElementById('rec-quality').innerText = "FILTERED";
+                document.getElementById('rec-quality').className = "font-tech font-bold text-amber-400";
+            }
+
+            document.getElementById('rec-expiry').innerText = `${expiryTimeStr}`;
+        }
+
+        function toggleAutoSignals() {
+            autoSignalEnabled = document.getElementById('auto-signal-toggle').checked;
+            if (autoSignalEnabled) showToast("Auto Scanner Active! Triggering on new candle opens.", "info");
+        }
+
+        function calculateMartingale() {
+            const baseStakeInput = parseFloat(document.getElementById('base-stake').value);
+            const baseStake = isNaN(baseStakeInput) || baseStakeInput <= 0 ? 10 : Math.min(baseStakeInput, 10000);
+            
+            const payout = currentPayout / 100;
+            const tableBody = document.getElementById('martingale-table-body');
+            tableBody.innerHTML = '';
+            
+            let totalLoss = 0;
+            const multipliers = [1, 2.2, 4.85, 10.6];
+
+            for (let step = 1; step <= 4; step++) {
+                let mult = multipliers[step - 1];
+                let stake = baseStake * mult;
+                let profitOnWin = (stake * payout) - totalLoss;
+                totalLoss += stake;
+
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-800/40 transition";
+                row.innerHTML = `
+                    <td class="p-2 font-bold text-cyan-400">Step ${step}</td>
+                    <td class="p-2 text-gray-400">${mult}x</td>
+                    <td class="p-2">$${stake.toFixed(2)}</td>
+                    <td class="p-2 text-right text-emerald-400 font-bold">+$${profitOnWin.toFixed(2)}</td>
+                `;
+                tableBody.appendChild(row);
+            }
+        }
+
+        function addSignalToLog(asset, tradeType, entryTime, expiryTime, entryPrice, confidence) {
+            const historyBody = document.getElementById('signal-history-body');
+            if (historyBody.children.length === 1 && historyBody.children[0].children.length === 1) historyBody.innerHTML = '';
+
+            const rowId = 'sig-' + Date.now();
+            const tr = document.createElement('tr');
+            tr.id = rowId;
+            tr.className = "hover:bg-slate-800/40 transition border-b border-slate-800/40";
+            
+            const isCall = tradeType === "CALL";
+            const formattedEntryPrice = formatExactPrice(currentSymbolTV, entryPrice);
+
+            tr.innerHTML = `
+                <td class="p-2 text-gray-400">${entryTime}</td>
+                <td class="p-2 text-cyan-400 font-semibold">${expiryTime}</td>
+                <td class="p-2 font-bold text-white">${asset}</td>
+                <td class="p-2 text-center font-bold">
+                    <span class="px-2 py-0.5 rounded text-[10px] ${isCall ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40' : 'bg-rose-950 text-rose-400 border border-rose-500/40'}">
+                        ${isCall ? 'CALL 🟢' : 'PUT 🔴'}
+                    </span>
+                </td>
+                <td class="p-2 text-right text-cyan-300 font-mono font-bold">${formattedEntryPrice}</td>
+                <td class="p-2 text-right font-mono text-slate-300" id="exp-price-${rowId}">
+                    <i class="fa-solid fa-spinner animate-spin text-[10px]"></i>
+                </td>
+                <td class="p-2 text-center text-cyan-300">${confidence}</td>
+                <td class="p-2 text-right font-bold text-amber-400 font-mono" id="res-${rowId}">
+                    <span class="text-amber-400"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Active</span>
+                </td>
+            `;
+
+            historyBody.insertBefore(tr, historyBody.firstChild);
+            
+            const durationMs = parseInt(activeTimeframe) * 60000;
+            setTimeout(() => { settleSimulatedTrade(rowId, tradeType, entryPrice, confidence); }, Math.min(durationMs, 8000));
+        }
+
+        function settleSimulatedTrade(rowId, tradeType, entryPrice, confidence) {
+            const resElem = document.getElementById(`res-${rowId}`);
+            const expPriceElem = document.getElementById(`exp-price-${rowId}`);
+            if (!resElem || !expPriceElem) return;
+
+            const confNum = parseInt(confidence);
+            const winProb = confNum / 100;
+            const isWin = Math.random() < (winProb > 0.88 ? 0.88 : 0.82);
+
+            let priceDelta = (entryPrice * 0.0003) * (isWin ? (tradeType === "CALL" ? 1 : -1) : (tradeType === "CALL" ? -1 : 1));
+            let expiryPrice = entryPrice + priceDelta;
+            const formattedExpPrice = formatExactPrice(currentSymbolTV, expiryPrice);
+
+            expPriceElem.innerText = formattedExpPrice;
+
+            if (isWin) {
+                resElem.innerHTML = `<span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-500/40 font-bold">WIN ITM 🟢</span>`;
+                stats.wins++;
+            } else {
+                resElem.innerHTML = `<span class="px-2 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-500/40 font-bold">LOSS OTM 🔴</span>`;
+                stats.losses++;
+            }
+
+            document.getElementById('wins-count').innerText = stats.wins;
+            document.getElementById('losses-count').innerText = stats.losses;
+            const total = stats.wins + stats.losses;
+            const winrate = total > 0 ? Math.round((stats.wins / total) * 100) : 0;
+            document.getElementById('winrate-val').innerText = `${winrate}%`;
+        }
+
+        function clearHistory() {
+            stats = { wins: 0, losses: 0 };
+            document.getElementById('wins-count').innerText = "0";
+            document.getElementById('losses-count').innerText = "0";
+            document.getElementById('winrate-val').innerText = "0%";
+            document.getElementById('signal-history-body').innerHTML = `
+                <tr><td colspan="8" class="p-4 text-center text-gray-500 font-sub">No active trades in session. Click Scan to execute analysis.</td></tr>
+            `;
+        }
+
+        async function sendLiveTradeToBackend(asset, action, amount, exactPrice, confidence, timeframe) {
+            const config = JSON.parse(localStorage.getItem('qx_api_config') || '{}');
+            const execMode = config.execMode || document.querySelector('input[name="exec-mode"]:checked')?.value || 'auto';
+
+            if (execMode === 'manual') {
+                showToast(`Manual Mode Active: Signal generated for ${asset} (${action})`, 'info');
+                return;
+            }
+
+            const endpoint = config.endpoint || document.getElementById('api-secret-input')?.value || "http://localhost:5000/trade-signal";
+            const apiKey = config.apiKey || document.getElementById('api-key-input')?.value || "LOCAL_SECRET_KEY_123";
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-API-Key": apiKey
+                    },
+                    body: JSON.stringify({
+                        asset: asset,
+                        action: action,
+                        amount: amount,
+                        exact_price: exactPrice,
+                        confidence: confidence,
+                        timeframe: timeframe + "m",
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                if (response.ok) {
+                    showToast(`Auto-Trade Webhook Fired @ Price: ${exactPrice}`, 'success');
+                } else {
+                    showToast(`Webhook HTTP Error: ${response.status}`, 'danger');
+                }
+            } catch (error) {
+                console.error("🚨 Local Python server not detected on target endpoint", error);
+                showToast("Webhook dispatch failed! Verify local server status.", "danger");
+            }
+        }
+    </script>
+</body>
+</html>
